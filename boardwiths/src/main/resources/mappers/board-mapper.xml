@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="boardMapper">
+	<select id="getListCount" resultType="_int">
+		select count(*)
+         from board
+         where board_status = 'Y' and category in 
+         <foreach collection="category.split(',')" item="item" open="(" close=")" separator=",">
+         	#{item}
+         </foreach>
+	</select>
+
+	<select id="selectBoardList" resultType="Board">
+		select *
+		from board
+		    join users using(USERS_NO)
+		where board_status = 'Y' and category in
+		<foreach collection="category.split(',')" item="item" open="(" close=")" separator=",">
+         	 #{item}
+        </foreach>
+		order by board_no desc
+	</select>
+	
+	<select id="selectBoard" resultType="Board">
+		select *
+		from board
+			join users using(USERS_NO)
+		where board_status = 'Y' and board_No = #{ bNo }
+	</select>
+	
+	<select id="getSearchListCount" resultType="_int">
+		select count(*)
+		from board
+			join users using(USERS_NO)
+		where board_status = 'Y'
+		and category in
+		<foreach collection="category.split(',')" item="item" open="(" close=")" separator=",">
+         	 #{item}
+        </foreach>
+		<if test="condition == 'writer'">
+			and nickname like '%' || #{value} || '%'
+		</if>
+		<if test="condition == 'content' or condition == 'title'">
+			and ${condition} like '%' || #{value} || '%'
+		</if>
+		<if test="condition != 'writer' and condition != 'content' and condition != 'title'">
+			and (nickname like '%' || #{value} || '%' or title like '%' || #{value} || '%' or content like '%' || #{value} || '%')
+		</if>
+	</select>
+	
+	<select id="selectSearchList" resultType="Board">
+		select *
+		from board
+			join users using(USERS_NO)
+		where board_status = 'Y'
+		and category in
+		<foreach collection="category.split(',')" item="item" open="(" close=")" separator=",">
+         	 #{item}
+        </foreach>
+			<choose>
+				<when test="condition == 'writer'">
+					and nickname = like '%' || #{value} || '%'
+				</when>
+				<when test="condition == 'content' or condition == 'title'">
+					and ${condition} like '%' || #{value} || '%'
+				</when>
+				<otherwise>
+					and (nickName like '%' || #{value} || '%' or title like '%' || #{value} || '%' or content like '%' || #{value} || '%')
+				</otherwise>
+			</choose>
+		order by board_no desc
+	</select>
+	
+	<update id="deleteBoard">
+		update board
+		set board_status = 'N'
+		where board_No = #{bNo}
+	</update>
+	
+	<update id="updateCount">
+		update board
+		set board_count = board_count + 1
+		where board_No = #{ bNo }
+	</update>
+	
+	<select id="selectComments" resultType="Comments">
+		select *
+		from comments
+			join users using(users_no)
+		where ref_board_No = #{ bNo }
+		order by com_No desc
+	</select>
+	
+	<insert id="insertComments" useGeneratedKeys="true">
+		insert into comments
+		values (comments_seq.nextval, #{ usersNo }, SYSDATE, #{ refBoardNo }, #{ comContent })
+	</insert>
+	
+	<update id="deleteComments">
+		delete
+		from comments
+		where com_No = #{ comNo }
+	</update>
+	
+	<update id="updateComments">
+		update comments
+		set com_content = #{ comContent }
+		where com_no = #{ comNo }
+	</update>
+	
+	<select id="countBlikes" resultType="_int">
+		select count(*)
+		from Board_Like
+		where ref_board_no = #{ bNo }
+	</select>
+	
+	<select id="countClikes" resultType="_int">
+		select count(*)
+		from com_like
+		where com_no = #{ cNo }
+	</select>
+	
+	<!-- 게임검색후 출력 -->
+   	<select id="selectGameList" resultType="Game">
+   		select GAME_NO, GAME_NAME, GAME_COMPANY, GAME_GENRE, GAME_PLAYTIME, GAME_LEVEL, GAME_PEOPLE, GAME_STATUS, IMG_RENAME AS GAME_IMG_RENAME
+   		from game_list
+   			join image on (GAME_NO = img_REF_NO)
+   		where REPLACE(game_name, ' ', '') = #{ gameName } or game_name = #{ gameName } AND IMG_GROUP='G'
+   	</select>
+  
+    <!-- BOARD 테이블에 제목,내용,카테고리,게임번호를 저징  -->
+    <insert id="insertBasicInfo" parameterType="Board" useGeneratedKeys="true">
+    	<selectKey keyProperty="boardNo" resultType="_int" order="BEFORE">
+    		select BOARD_SEQ.NEXTVAL
+    		from dual
+    	</selectKey>
+    		INSERT INTO board (board_No, users_No, game_No, category, title, content, create_Date, board_Count, is_Notice, is_Complete, board_Status)
+    		VALUES (#{boardNo}, 32, #{gameNo}, #{category}, #{title}, #{content}, sysdate, default, default, default, default)
+	</insert> 
+	
+	
+	<!-- BOARD_MARKET 테이블에 가격, 상태를 저장 -->
+	<insert id="insertBSInfo" parameterType="BoardMarket">
+		insert into board_Market
+		values (BOARD_MARKET_SEQ.nextval,#{price},#{status},#{refBoardNo})
+	</insert>
+	
+	<!-- IMAGE 테이블에 이미지이름,이미지rename이름, 그룹번호를 저장 -->
+	<insert id="insertBoardImg">
+		insert into Image
+		values (IMAGE_SEQ.nextval, #{imgName}, #{imgRename}, #{imgGroup}, default, #{imgRefNo})
+	</insert>
+	 
+ 	<!-- 문의테이블에 데이터 저장 -->
+	<insert id="insertQuery">
+		insert into board_Query
+		values (BOARD_QUERY_SEQ.nextval,#{queryReason},#{refBoardNo})
+	</insert>
+	
+	<!-- 매칭테이블에 데이터 저장 -->
+	<insert id="insertMatchingInfo">
+		insert into board_Matching
+		values (BOARD_MATCHING_SEQ.nextval, default,  #{maxMember}, sysdate, sysdate + 3,  #{place} ,#{refBoardNo})
+		<!--                            참여회원수는 default           올린날짜   마감날짜(3일후 마감) -->
+	</insert>
+</mapper>

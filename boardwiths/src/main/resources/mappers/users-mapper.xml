@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="usersMapper">
+	<select id="login" resultType="Users">
+		select *
+			from users
+			where id = #{ id } and pwd = #{ pwd } and users_status = 'Y'
+	</select>
+	
+    <insert id="insertUsers" useGeneratedKeys="true">
+        <selectKey resultType="_int" keyProperty="usersNo" order="BEFORE">
+            select users_seq.nextval from dual
+        </selectKey>
+        insert into users
+        values(#{usersNo}, #{id}, #{pwd}, #{nickname}, #{usersName}, #{phone}, #{email}, default, default, sysdate, null, null, sysdate, default, default)
+    </insert>
+	
+	<insert id="reportUsers" useGeneratedKeys="true">
+		insert into report_list
+		values (report_list_seq.nextval, #{ reportSender }, #{ reportReceiver }, #{ reportBoard }, SYSDATE, #{ reportMsg }, default)
+	</insert>
+	
+	<!-- 정현 -->
+		<select id="selectMyList" resultType="Board">
+	 	SELECT * 
+		FROM BOARD
+			JOIN USERS USING(USERS_NO)
+		WHERE USERS_NO = #{usersNo} and board_status = 'Y'
+	</select>
+	<select id="myBoardListCount" resultType="_int">
+		select count(*)
+		from board
+		where users_no = #{usersNo} and board_status = 'Y'
+	</select>
+
+
+	<select id="myReplyListCount" resultType="_int">
+		select count(*)
+		from comments
+		where users_no = #{usersNo}
+	</select>
+	<select id="selectMyReplyList" resultType="Comments">
+	 	SELECT * 
+		FROM COMMENTS
+			JOIN BOARD USING(USERS_NO)
+		WHERE USERS_NO = #{usersNo} 
+	</select>
+	
+	
+	<select id="myReBoardListCount" resultType="_int">
+		select count(*)
+		from comments
+			JOIN USERS USING(USERS_NO)
+		where users_no = #{usersNo} 
+	</select>
+	<select id="selectMyReBoardList" resultType="Comments">
+	 	WITH distinct_boards AS (
+		    SELECT DISTINCT BOARD.BOARD_NO
+		    FROM comments
+		    JOIN users ON USERS.users_no = COMMENTS.USERS_NO
+		    JOIN BOARD ON comments.REF_BOARD_NO = BOARD.BOARD_NO
+		    WHERE users.users_no = #{usersNo}
+		)
+		SELECT BOARD.*, USERS.nickname
+		FROM BOARD
+		JOIN distinct_boards ON BOARD.BOARD_NO = distinct_boards.BOARD_NO
+		JOIN users ON BOARD.users_no = users.users_no
+	</select>
+	
+	
+	<select id="myBoardLikeListCount" resultType="_int">
+		select count(*)
+		from board_like
+		where users_no = #{usersNo}
+	</select>
+	<select id="selectMyBoardLikeList" resultType="Board">
+		SELECT B.BOARD_NO, B.CATEGORY, B.TITLE, U.NICKNAME, B.CREATE_DATE, B.BOARD_COUNT, L.USERS_NO
+		FROM BOARD B
+			JOIN BOARD_LIKE L ON B.BOARD_NO = L.REF_BOARD_NO
+			JOIN USERS U ON B.USERS_NO = U.USERS_NO
+		WHERE L.USERS_NO = #{usersNo}
+	</select>
+	
+	
+	<select id="messageListCount" resultType="_int">
+		select count(*)
+		from note
+		where note_receiver = #{note_receiver}
+	</select>
+	<select id="selectMessageList" resultType="Note">
+		select note_no, note_sender, nickname, note_content, note_date, note_receiver
+		from note
+		    join users on(users_no = note_sender)
+		where note_receiver = #{usersNo}	
+	</select>
+	
+		<select id="usersMyPage" resultType="Users">
+		select users_name, nickname, id, pwd, phone,
+        		email, grade, users_no, enroll_date, report_count
+		from users
+		where id = #{id}
+	</select>
+	
+	<select id="getUsersById" resultType="Users">
+		select *
+		from users
+		where id = #{id}
+	</select>
+	
+	<update id="usersChange">
+	    update users
+	    <set>
+	        <if test="usersName != null">users_name = #{usersName},</if>
+	        <if test="nickName != null">nickname = #{nickName},</if>
+	        <if test="id != null">id = #{id},</if>
+	        <if test="pwd != null">pwd = #{pwd},</if>
+	        <if test="phone != null">phone = #{phone},</if>
+	        <if test="email != null">email = #{email},</if>
+	    </set>
+	    where id = #{id}
+	</update>
+
+	<update id="updatePassword">
+		update users
+		set pwd=#{newPwd}
+		where id=#{id}
+	</update>
+	
+	<update id="updateMember">
+		update users
+		set pwd=#{newPwd}
+		where id=#{id}
+	</update>
+		
+	<update id="deleteUser" parameterType="int">
+	    update users
+	    set users_status = 'N'
+	    where id = #{id}
+	</update>
+	
+</mapper>

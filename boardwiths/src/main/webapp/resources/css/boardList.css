@@ -1,0 +1,7 @@
+.table {
+	text-align: center;
+}
+
+td:hover{
+	cursor: pointer;
+}
